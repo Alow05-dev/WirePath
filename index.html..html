@@ -1,0 +1,552 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="WirePath">
+<link rel="manifest" href="manifest.webmanifest">
+<title>WirePath • Electrical Field Tool</title>
+<style>
+:root{--bg:#08111f;--card:#101d31;--card2:#17263e;--text:#f6f8fc;--muted:#9eb0c9;--accent:#4da3ff;--good:#39d98a;--bad:#ff6b6b;--warn:#ffd166;--line:#293c59;--shadow:0 8px 24px rgba(0,0,0,.18)}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;padding-bottom:40px}
+header{position:sticky;top:0;z-index:10;background:rgba(8,17,31,.96);backdrop-filter:blur(16px);padding:calc(12px + env(safe-area-inset-top)) 16px 12px;border-bottom:1px solid var(--line)}
+h1{font-size:27px;margin:0 0 5px;letter-spacing:-.4px}.sub{color:var(--muted);font-size:14px}
+.mode{display:grid;grid-template-columns:70px 1fr;gap:10px;align-items:center;margin-top:13px}.mode label{font-size:13px;color:var(--muted);font-weight:700}
+nav{display:flex;gap:8px;overflow-x:auto;padding:11px 12px;position:sticky;top:112px;z-index:9;background:rgba(8,17,31,.96);border-bottom:1px solid var(--line);-webkit-overflow-scrolling:touch}
+nav::-webkit-scrollbar{display:none}
+nav button{white-space:nowrap;border:1px solid var(--line);background:var(--card);color:var(--text);padding:10px 14px;border-radius:22px;font-size:14px}
+nav button.active{background:var(--accent);color:#00152c;border-color:var(--accent);font-weight:800}
+main{padding:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:17px;margin-bottom:13px;box-shadow:var(--shadow)}
+.titleRow{display:flex;justify-content:space-between;gap:10px;align-items:flex-start}
+h2{font-size:22px;margin:0 0 5px;letter-spacing:-.2px}.desc{color:var(--muted);font-size:13px;line-height:1.4;margin:0 0 15px}
+.badge{font-size:11px;color:var(--muted);border:1px solid var(--line);border-radius:999px;padding:6px 9px;white-space:nowrap}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field{min-width:0}.field.full{grid-column:1/-1}
+label{font-size:12px;color:var(--muted);display:block;margin:0 0 6px;font-weight:650}
+.control{position:relative}
+input,select{width:100%;min-height:48px;padding:12px 13px;border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text);font-size:16px;outline:none}
+input:focus,select:focus{border-color:var(--accent);box-shadow:0 0 0 2px rgba(77,163,255,.14)}
+input[type=number]{appearance:textfield}
+.help{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.3}
+.actions{display:grid;grid-template-columns:1fr 110px;gap:9px;margin-top:13px}
+button.primary,button.secondary{min-height:49px;border-radius:12px;font-size:16px;font-weight:800}
+button.primary{border:0;background:var(--accent);color:#00152c}
+button.secondary{border:1px solid var(--line);background:var(--card2);color:var(--text)}
+.resultHeader{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.resultHeader h2{margin:0}
+.result{display:flex;justify-content:space-between;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:15px}
+.result:last-child{border-bottom:0}.result .value{font-weight:850;text-align:right}
+.pass{color:var(--good)}.fail{color:var(--bad)}.warn{color:var(--warn)}
+.note{font-size:11.5px;color:var(--muted);line-height:1.5;margin:13px 0 0}
+.learn{display:none}.learn.show{display:block}
+.step{padding:12px 0;border-bottom:1px solid var(--line)}.step:last-child{border-bottom:0}
+.step b{display:block;color:var(--text);margin-bottom:5px}.step p{margin:0;color:var(--muted);line-height:1.45;font-size:13px}
+.ref{margin-top:12px;padding:10px 12px;background:rgba(77,163,255,.07);border:1px solid var(--line);border-radius:10px;font-size:11.5px;color:var(--muted);line-height:1.4}
+.toast{position:fixed;left:14px;right:14px;bottom:18px;z-index:30;background:#17263e;border:1px solid var(--line);padding:12px 14px;border-radius:12px;box-shadow:var(--shadow);display:none;font-size:13px}
+.toast.show{display:block}
+@media(min-width:700px){main{max-width:860px;margin:auto}.grid{grid-template-columns:repeat(3,1fr)}}
+@media(max-width:430px){.grid{grid-template-columns:1fr}.field.full{grid-column:auto}.actions{grid-template-columns:1fr 96px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚡ WirePath</h1>
+  <div class="sub">Electrical Field Tool • 2026 workflow</div>
+  <div class="mode">
+    <label for="mode">MODE</label>
+    <select id="mode"><option>Normal</option><option>Learn</option></select>
+  </div>
+</header>
+<nav id="nav"></nav>
+<main id="app"></main>
+<div id="toast" class="toast"></div>
+
+<script>
+const AWG=["14 AWG","12 AWG","10 AWG","8 AWG","6 AWG","4 AWG","3 AWG","2 AWG","1 AWG","1/0 AWG","2/0 AWG","3/0 AWG","4/0 AWG"];
+const SIZES=["1/2","3/4","1","1-1/4","1-1/2","2","2-1/2","3","3-1/2","4"];
+
+const data={
+ raceway:{title:"Raceway Fill",desc:"Check conductor fill in a selected raceway and trade size.",ref:"Planning workflow: verify the applicable raceway fill rule, conductor dimensions/insulation type, and adopted NEC/AHJ requirements.",calc:"raceway",
+  fields:[
+   ["type","Raceway","select",["EMT","RMC/IMC","PVC Sch 40","PVC Sch 80"],"Choose raceway type"],
+   ["size","Trade size","select",SIZES,"Trade size in inches"],
+   ["awg","Conductor","select",AWG,"Conductor size"],
+   ["count","Conductors","number",3,"Count of conductors",1]
+  ]},
+ auto:{title:"Auto Raceway",desc:"Find the smallest listed raceway that meets the selected target fill.",ref:"Planning workflow: final raceway selection must use the actual raceway internal area and conductor dimensions required by the adopted NEC and manufacturer data.",calc:"auto",
+  fields:[
+   ["type","Raceway","select",["EMT","RMC/IMC","PVC Sch 40","PVC Sch 80"],"Choose raceway type"],
+   ["awg","Conductor","select",AWG,"Conductor size"],
+   ["count","Conductors","number",3,"Count of conductors",1],
+   ["target","Target fill %","number",40,"Typical planning target; verify applicable rule",1]
+  ]},
+ amp:{title:"Ampacity",desc:"Estimate adjusted conductor ampacity from conductor, material, CCC, and ambient temperature.",ref:"Planning workflow: verify the applicable ampacity table, temperature limitations, adjustment/correction rules, conductor insulation rating, terminations, and OCPD rules before final sizing.",calc:"amp",
+  fields:[
+   ["awg","Conductor","select",AWG,"Conductor size"],
+   ["mat","Material","select",["Copper","Aluminum"],"Conductor material"],
+   ["ccc","Current-carrying conductors","number",3,"CCC in the raceway/cable",1],
+   ["amb","Ambient °C","number",30,"Ambient temperature",0],
+   ["ocpd","OCPD A","number",20,"Breaker/fuse rating",1]
+  ]},
+ vd:{title:"Voltage Drop",desc:"Calculate voltage drop using automatic conductor resistance values.",ref:"Planning values use stored resistance data at 75°C. Final AC voltage-drop design can require impedance/reactance, conductor temperature, installation method, and equipment data.",calc:"vd",
+  fields:[
+   ["phase","Phase","select",["Single","Three"],"Circuit phase"],
+   ["mat","Material","select",["Copper","Aluminum"],"Conductor material"],
+   ["awg","Conductor","select",AWG,"Conductor size"],
+   ["v","Voltage","number",120,"System voltage",0],
+   ["i","Load current A","number",20,"Load current",0],
+   ["len","One-way length ft","number",100,"One-way circuit length",1]
+  ]},
+ egc:{title:"EGC",desc:"Select a planning equipment grounding conductor size from the circuit OCPD.",ref:"Planning reference: NEC 250.122. Verify adjustment rules and the complete grounding/bonding requirements for the installation.",calc:"egc",
+  fields:[["ocpd","OCPD A","number",100,"Circuit overcurrent device",1]]},
+ box:{title:"Box Fill",desc:"Estimate box-fill volume from conductor and device counts.",ref:"Planning reference: NEC 314.16. Actual box-fill calculations depend on conductor size, grounding conductors, internal clamps, fittings, devices/yokes, and conductor conditions.",calc:"box",
+  fields:[
+   ["awg","Conductor","select",["14 AWG","12 AWG","10 AWG","8 AWG","6 AWG","4 AWG"],"Largest conductor size in the box"],
+   ["ins","Insulated conductors","number",4,"Insulated conductors",0],
+   ["grd","Ground conductors","number",1,"Grounding conductors",0],
+   ["clamp","Internal clamps","number",0,"Internal cable/raceway clamps",0],
+   ["yoke","Device yokes","number",1,"Device yokes",0]
+  ]},
+ load:{title:"Load Calculator",desc:"Build a planning load from general, receptacle, continuous, motor, and other loads.",ref:"Planning workflow: verify the applicable 2026 NEC load-calculation provisions, demand factors, continuous-load treatment, dwelling/non-dwelling rules, and service/feeder requirements for the actual project.",calc:"load",
+  fields:[
+   ["v","Voltage","number",240,"System voltage",0],
+   ["phase","Phase","select",["Single","Three"],"System phase"],
+   ["general","General / lighting VA","number",3000,"Connected load",0],
+   ["rec","Receptacle VA","number",1800,"Connected load",0],
+   ["cont","Continuous VA","number",1000,"Continuous portion",0],
+   ["motor","Motor VA","number",2400,"Planning motor load",0],
+   ["other","Other VA","number",500,"Other connected load",0],
+   ["demand","Demand factor","number",1,"Enter 1.00 for no demand reduction",0.01]
+  ]},
+ motor:{title:"Motor Planner",desc:"Select motor horsepower, phase, and voltage to calculate table FLC, minimum conductor ampacity, and inverse-time breaker size.",ref:"Motor branch-circuit planning uses NEC Article 430. Table 430.248 provides single-phase FLC and Table 430.250 provides three-phase FLC for the covered motor types. NEC 430.22 uses 125% of FLC for a continuous-duty single-motor branch-circuit conductor. Table 430.52 uses 250% of FLC for an inverse-time breaker for the common motor categories shown here. Verify motor type, nameplate, overloads, VFDs, exceptions, and the adopted 2026 NEC before final installation.",calc:"motor",
+  fields:[
+   ["phase","Phase","select",["Three","Single"],"Select single-phase or three-phase motor"],
+   ["voltage","Motor voltage","select",["230","460","575","208","200","115"],"Use the rated motor voltage represented by the applicable NEC table column"],
+   ["hp","Horsepower","select",motorHP,"Motor horsepower"],
+   ["other","Other motors total FLC A","number",0,"Optional: total FLC of other motors for feeder planning",0]
+  ]},
+ service:{title:"Service / Feeder",desc:"Convert a planning VA load into current and show continuous-load and largest-motor planning values.",ref:"Planning workflow: service/feeder sizing requires the complete applicable load calculation, demand factors, continuous loads, motor rules, conductor/OCPD rules, and adopted NEC/AHJ requirements.",calc:"service",
+  fields:[
+   ["load","Base calculated load VA","number",24000,"Before added continuous-load treatment",0],
+   ["v","Voltage","number",240,"System voltage",0],
+   ["phase","Phase","select",["Single","Three"],"System phase"],
+   ["cont","Continuous VA","number",4000,"Continuous load portion",0],
+   ["motor","Largest motor FLC A","number",30,"Largest motor FLC",0]
+  ]},
+ takeoff:{title:"Field Takeoff",desc:"Estimate conductor and raceway footage plus common material counts.",ref:"Takeoff quantities are estimates. Confirm routing, actual run lengths, slack, terminations, waste, fittings, support spacing, and project drawings before ordering material.",calc:"takeoff",
+  fields:[
+   ["race","Raceway footage","number",100,"Base raceway footage",1],
+   ["runs","Conductor runs","number",4,"Number of conductor runs",1],
+   ["length","Average run length ft","number",100,"Average one-way conductor run",1],
+   ["waste","Waste %","number",10,"Waste allowance",1],
+   ["couplings","Couplings","number",8,"Fittings",1],
+   ["supports","Supports","number",25,"Supports/hangers",1],
+   ["boxes","Boxes","number",6,"Boxes",1]
+  ]},
+ cost:{title:"Project Cost",desc:"Estimate material supply cost from a takeoff using editable 2026 planning prices.",ref:"Supply-price estimate only. Prices vary by distributor, brand, quantity, region, copper market, account discounts, and project specifications. Use current supplier quotes for a bid.",calc:"cost",
+  fields:[
+   ["wire12","12 AWG Cu THHN footage","number",1000,"Linear feet of 12 AWG copper THHN",1],
+   ["emt12","1/2 EMT sticks (10 ft)","number",10,"Number of 10-ft sticks",1],
+   ["emt34","3/4 EMT sticks (10 ft)","number",0,"Number of 10-ft sticks",1],
+   ["rec","20A duplex receptacles","number",10,"Standard commercial-grade receptacles",1],
+   ["gfci","20A GFCI receptacles","number",2,"GFCI receptacles",1],
+   ["switch","Single-pole switches","number",6,"Standard switches",1],
+   ["breaker20","20A single-pole breakers","number",4,"Standard breakers",1],
+   ["box","Electrical boxes","number",10,"Planning box count",1],
+   ["coupling12","1/2 EMT couplings","number",10,"Planning fitting count",1],
+   ["strap12","1/2 EMT straps","number",20,"Planning strap count",1],
+   ["markup","Material markup %","number",0,"Optional markup applied to material cost",1],
+   ["waste","Material waste %","number",10,"Waste allowance applied to quantity-based items",1]
+  ]}
+};
+
+const area={"1/2":.122,"3/4":.213,"1":.346,"1-1/4":.598,"1-1/2":.814,"2":1.342,"2-1/2":1.874,"3":2.907,"3-1/2":3.788,"4":5.126};
+const cond={"14 AWG":.0097,"12 AWG":.0133,"10 AWG":.0181,"8 AWG":.0282,"6 AWG":.0428,"4 AWG":.0588,"3 AWG":.071,"2 AWG":.0837,"1 AWG":.0983,"1/0 AWG":.1158,"2/0 AWG":.1333,"3/0 AWG":.1519,"4/0 AWG":.1715};
+const cu={"14 AWG":20,"12 AWG":25,"10 AWG":35,"8 AWG":50,"6 AWG":65,"4 AWG":85,"3 AWG":100,"2 AWG":115,"1 AWG":130,"1/0 AWG":150,"2/0 AWG":175,"3/0 AWG":200,"4/0 AWG":230};
+const al={"14 AWG":15,"12 AWG":20,"10 AWG":30,"8 AWG":40,"6 AWG":50,"4 AWG":65,"3 AWG":75,"2 AWG":90,"1 AWG":100,"1/0 AWG":120,"2/0 AWG":135,"3/0 AWG":155,"4/0 AWG":180};
+const vdR={
+ "Copper":{"14 AWG":3.07,"12 AWG":1.93,"10 AWG":1.21,"8 AWG":0.764,"6 AWG":0.491,"4 AWG":0.308,"3 AWG":0.245,"2 AWG":0.194,"1 AWG":0.154,"1/0 AWG":0.122,"2/0 AWG":0.0967,"3/0 AWG":0.0766,"4/0 AWG":0.0608},
+ "Aluminum":{"14 AWG":4.93,"12 AWG":3.10,"10 AWG":1.95,"8 AWG":1.23,"6 AWG":0.808,"4 AWG":0.508,"3 AWG":0.403,"2 AWG":0.319,"1 AWG":0.253,"1/0 AWG":0.203,"2/0 AWG":0.160,"3/0 AWG":0.128,"4/0 AWG":0.102}
+};
+const egc=[[15,"14 AWG"],[20,"12 AWG"],[30,"10 AWG"],[60,"10 AWG"],[100,"8 AWG"],[200,"6 AWG"],[300,"4 AWG"],[400,"3 AWG"],[500,"2 AWG"],[600,"1 AWG"],[800,"1/0 AWG"],[1000,"2/0 AWG"],[1200,"3/0 AWG"],[1600,"4/0 AWG"]];
+
+const motorHP=["1/6","1/4","1/3","1/2","3/4","1","1-1/2","2","3","5","7-1/2","10","15","20","25","30","40","50","60","75","100","125","150","200"];
+const motorFLC1={
+ "1/6": {"115":4.4,"200":2.5,"208":2.4,"230":2.2},
+ "1/4": {"115":5.8,"200":3.3,"208":3.2,"230":2.9},
+ "1/3": {"115":7.2,"200":4.1,"208":4.0,"230":3.6},
+ "1/2": {"115":9.8,"200":5.6,"208":5.4,"230":4.9},
+ "3/4":{"115":13.8,"200":7.9,"208":7.6,"230":6.9},
+ "1":{"115":16,"200":9.2,"208":8.8,"230":8.0},
+ "1-1/2":{"115":20,"200":11.5,"208":11.0,"230":10},
+ "2":{"115":24,"200":13.8,"208":13.2,"230":12},
+ "3":{"115":34,"200":19.6,"208":18.7,"230":17},
+ "5":{"115":56,"200":32.2,"208":30.8,"230":28},
+ "7-1/2":{"115":80,"200":46,"208":44,"230":40},
+ "10":{"115":100,"200":57.5,"208":55,"230":50}
+};
+const motorFLC3={
+ "1/2":{"200":2.5,"208":2.4,"230":2.2,"460":1.1,"575":0.9},
+ "3/4":{"200":3.7,"208":3.5,"230":3.2,"460":1.6,"575":1.3},
+ "1":{"200":4.8,"208":4.6,"230":4.2,"460":2.1,"575":1.7},
+ "1-1/2":{"200":6.9,"208":6.6,"230":6.0,"460":3.0,"575":2.4},
+ "2":{"200":7.8,"208":7.5,"230":6.8,"460":3.4,"575":2.7},
+ "3":{"200":11.0,"208":10.6,"230":9.6,"460":4.8,"575":3.9},
+ "5":{"200":17.5,"208":16.7,"230":15.2,"460":7.6,"575":6.1},
+ "7-1/2":{"200":25.3,"208":24.2,"230":22,"460":11,"575":9},
+ "10":{"200":32.2,"208":30.8,"230":28,"460":14,"575":11},
+ "15":{"200":48.3,"208":46.2,"230":42,"460":21,"575":17},
+ "20":{"200":62.1,"208":59.4,"230":54,"460":27,"575":22},
+ "25":{"200":78.2,"208":74.8,"230":68,"460":34,"575":27},
+ "30":{"200":92,"208":88,"230":80,"460":40,"575":32},
+ "40":{"200":120,"208":114,"230":104,"460":52,"575":41},
+ "50":{"200":150,"208":143,"230":130,"460":65,"575":52},
+ "60":{"200":177,"208":169,"230":154,"460":77,"575":62},
+ "75":{"200":221,"208":211,"230":192,"460":96,"575":77},
+ "100":{"200":285,"208":273,"230":248,"460":124,"575":99},
+ "125":{"200":359,"208":343,"230":312,"460":156,"575":125},
+ "150":{"200":414,"208":396,"230":360,"460":180,"575":144},
+ "200":{"200":552,"208":528,"230":480,"460":240,"575":192}
+};
+const standardBreakers=[15,20,25,30,35,40,45,50,60,70,80,90,100,110,125,150,175,200,225,250,300,350,400,450,500,600,700,800];
+
+
+// Editable 2026 planning supply prices. These are deliberately separate from live retail pricing.
+const PRICE={
+ wire12:.29,      // $/ft, planning average for 12 AWG Cu THHN
+ emt12:8.00,      // $/10-ft stick
+ emt34:11.50,     // $/10-ft stick
+ rec:4.50,
+ gfci:24.00,
+ switch:3.50,
+ breaker20:13.00,
+ box:2.75,
+ coupling12:1.15,
+ strap12:.35
+};
+
+let current="raceway";
+const state={};
+
+function fmt(x,d=2){
+ if(typeof x==="string") return x;
+ if(!Number.isFinite(x)) return "—";
+ if(Math.abs(x)>=1000) return x.toLocaleString(undefined,{maximumFractionDigits:0});
+ return x.toFixed(d);
+}
+function esc(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]));}
+function key(){return "wirepath-"+current;}
+function defaults(){
+ const d=data[current];
+ const o={};
+ d.fields.forEach(f=>o[f[0]]=f[2]==="number"?f[3]:f[3][0]);
+ return o;
+}
+function saveState(){
+ const o={};
+ data[current].fields.forEach(f=>{
+   const e=document.getElementById(f[0]);
+   if(e)o[f[0]]=f[2]==="number"?Number(e.value):e.value;
+ });
+ try{localStorage.setItem(key(),JSON.stringify(o));}catch(e){}
+}
+function loadState(){
+ try{
+   const x=JSON.parse(localStorage.getItem(key())||"null");
+   return x&&typeof x==="object"?x:defaults();
+ }catch(e){return defaults();}
+}
+function get(){
+ const o={};
+ data[current].fields.forEach(f=>{
+   const e=document.getElementById(f[0]);
+   o[f[0]]=f[2]==="number"?Number(e.value):e.value;
+ });
+ return o;
+}
+function areaFactor(type){
+ return type==="EMT"?1:type==="RMC/IMC"?.97:type==="PVC Sch 40"?.92:.88;
+}
+function results(o){
+ const rows=[];
+ if(data[current].calc==="raceway"){
+   const a=area[o.size]*areaFactor(o.type), c=cond[o.awg]*o.count, p=c/a*100, limit=o.count===1?53:40;
+   rows.push(["Raceway internal area",fmt(a,3)+" in²"]);
+   rows.push(["Approx. conductor area",fmt(c,3)+" in²"]);
+   rows.push(["Calculated fill",fmt(p)+"%"]);
+   rows.push(["Planning status",p<=limit?"PASS":"OVERFILL",p<=limit?"pass":"fail"]);
+   rows.push(["Applied planning limit",limit+"%"]);
+ }
+ if(data[current].calc==="auto"){
+   const need=cond[o.awg]*o.count, target=Math.max(1,Math.min(100,o.target));
+   let found="No listed size";
+   for(const k of SIZES){
+     const a=area[k]*areaFactor(o.type);
+     if(need<=a*(target/100)){found=k;break;}
+   }
+   rows.push(["Required conductor area",fmt(need,3)+" in²"]);
+   rows.push(["Target fill",fmt(target)+"%"]);
+   rows.push(["Smallest listed size",found]);
+ }
+ if(data[current].calc==="amp"){
+   const base=(o.mat==="Copper"?cu:al)[o.awg];
+   const adj=o.ccc<=3?1:o.ccc<=6?.8:o.ccc<=9?.7:o.ccc<=20?.5:o.ccc<=30?.45:.35;
+   const amb=o.amb<=30?1:o.amb<=40?.91:o.amb<=45?.87:o.amb<=50?.82:o.amb<=55?.76:.71;
+   const final=base*adj*amb;
+   rows.push(["Base ampacity",fmt(base)+" A"]);
+   rows.push(["CCC adjustment factor",fmt(adj,2)]);
+   rows.push(["Ambient correction factor",fmt(amb,2)]);
+   rows.push(["Adjusted ampacity",fmt(final)+" A"]);
+   rows.push(["OCPD comparison",o.ocpd<=final?"PASS":"CHECK",o.ocpd<=final?"pass":"fail"]);
+ }
+ if(data[current].calc==="vd"){
+   const r=vdR[o.mat][o.awg];
+   const k=o.phase==="Single"?2:Math.sqrt(3);
+   const drop=k*o.len*o.i*r/1000, pct=o.v?drop/o.v*100:NaN;
+   rows.push(["Conductor",o.mat+" "+o.awg]);
+   rows.push(["Stored resistance @ 75°C",fmt(r,4)+" Ω/1000 ft"]);
+   rows.push(["Voltage drop",fmt(drop,2)+" V"]);
+   rows.push(["Drop percentage",fmt(pct,2)+"%"]);
+   rows.push(["Load voltage",fmt(o.v-drop,2)+" V"]);
+   rows.push(["3% design check",pct<=3?"PASS":"OVER 3%",pct<=3?"pass":"fail"]);
+   rows.push(["5% total-circuit guideline",pct<=5?"PASS":"OVER 5%",pct<=5?"pass":"fail"]);
+ }
+ if(data[current].calc==="egc"){
+   let found="";
+   for(const x of egc){if(o.ocpd<=x[0]){found=x[1];break;}}
+   rows.push(["Planning EGC",found||"Above listed range"]);
+   rows.push(["Reference","NEC 250.122"]);
+ }
+ if(data[current].calc==="box"){
+   const allowance={"14 AWG":2,"12 AWG":2.25,"10 AWG":2.5,"8 AWG":3,"6 AWG":5,"4 AWG":5}. [o.awg] || 2.25;
+   const grounded=o.grd>0?Math.max(1,Math.ceil(o.grd)):0;
+   const groundAllowance=allowance;
+   const clampAllowance=o.clamp>0?allowance:0;
+   const yokeAllowance=o.yoke*2*allowance;
+   const req=(o.ins*allowance)+(grounded*groundAllowance)+clampAllowance+yokeAllowance;
+   rows.push(["Allowance per volume unit",fmt(allowance,2)+" in³"]);
+   rows.push(["Insulated conductor allowance",fmt(o.ins*allowance,2)+" in³"]);
+   rows.push(["Grounding allowance",fmt(grounded*groundAllowance,2)+" in³"]);
+   rows.push(["Clamp allowance",fmt(clampAllowance,2)+" in³"]);
+   rows.push(["Device yoke allowance",fmt(yokeAllowance,2)+" in³"]);
+   rows.push(["Approx. required box volume",fmt(req,2)+" in³"]);
+ }
+ if(data[current].calc==="load"){
+   const non=o.general+o.rec+o.motor+o.other, cont=o.cont*1.25, total=(non+cont)*o.demand;
+   const i=o.phase==="Single"?total/o.v:total/(o.v*Math.sqrt(3));
+   rows.push(["Noncontinuous connected VA",fmt(non,0)+" VA"]);
+   rows.push(["Continuous load ×125%",fmt(cont,0)+" VA"]);
+   rows.push(["Planning calculated VA",fmt(total,0)+" VA"]);
+   rows.push(["Planning current",fmt(i,2)+" A"]);
+   rows.push(["Demand factor",fmt(o.demand,2)]);
+ }
+ if(data[current].calc==="motor"){
+   const table=o.phase==="Single"?motorFLC1:motorFLC3;
+   const flc=table[o.hp] ? table[o.hp][o.voltage] : undefined;
+   if(!Number.isFinite(flc)){
+     rows.push(["Motor FLC","No value in the selected NEC table for this HP/voltage combination","warn"]);
+     rows.push(["Check","Single-phase uses Table 430.248; three-phase uses Table 430.250","warn"]);
+   }else{
+     const conductor=flc*1.25;
+     const breakerCalc=flc*2.50;
+     const breaker=standardBreakers.find(x=>x>=breakerCalc) || null;
+     const feederMotor=conductor+Math.max(0,o.other);
+     rows.push(["NEC table FLC",fmt(flc,2)+" A"]);
+     rows.push(["Minimum conductor ampacity (125%)",fmt(conductor,2)+" A","pass"]);
+     rows.push(["Inverse-time breaker calculation (250%)",fmt(breakerCalc,2)+" A"]);
+     rows.push(["Standard inverse-time breaker",breaker?breaker+" A":"Above listed standard sizes","pass"]);
+     rows.push(["Other motors total FLC",fmt(Math.max(0,o.other),2)+" A"]);
+     rows.push(["Planning feeder motor ampacity",fmt(feederMotor,2)+" A"]);
+     rows.push(["Important","Breaker result is branch-circuit short-circuit/ground-fault protection, not motor overload protection. Use the motor nameplate for overload settings as applicable.","warn"]);
+   }
+ }
+ if(data[current].calc==="service"){
+   const cont=o.cont*1.25,total=o.load+cont,i=o.phase==="Single"?total/o.v:total/(o.v*Math.sqrt(3));
+   rows.push(["Continuous load ×125%",fmt(cont,0)+" VA"]);
+   rows.push(["Planning VA after continuous treatment",fmt(total,0)+" VA"]);
+   rows.push(["Planning load current",fmt(i,2)+" A"]);
+   rows.push(["Largest motor ×125%",fmt(o.motor*1.25,2)+" A"]);
+ }
+ if(data[current].calc==="takeoff"){
+   const mult=1+Math.max(0,o.waste)/100;
+   rows.push(["Conductor footage",fmt(o.runs*o.length*mult,0)+" ft"]);
+   rows.push(["Raceway footage",fmt(o.race*mult,0)+" ft"]);
+   rows.push(["Waste allowance",fmt(o.waste,1)+"%"]);
+   rows.push(["Couplings",fmt(o.couplings,0)]);
+   rows.push(["Supports",fmt(o.supports,0)]);
+   rows.push(["Boxes",fmt(o.boxes,0)]);
+ }
+ if(data[current].calc==="cost"){
+   const mult=1+Math.max(0,o.waste)/100;
+   const items=[
+    ["12 AWG Cu THHN",o.wire12*mult,PRICE.wire12,"ft"],
+    ["1/2 EMT",o.emt12*mult,PRICE.emt12,"10-ft stick"],
+    ["3/4 EMT",o.emt34*mult,PRICE.emt34,"10-ft stick"],
+    ["20A duplex receptacle",o.rec*mult,PRICE.rec,"ea"],
+    ["20A GFCI receptacle",o.gfci*mult,PRICE.gfci,"ea"],
+    ["Single-pole switch",o.switch*mult,PRICE.switch,"ea"],
+    ["20A single-pole breaker",o.breaker20*mult,PRICE.breaker20,"ea"],
+    ["Electrical box",o.box*mult,PRICE.box,"ea"],
+    ["1/2 EMT coupling",o.coupling12*mult,PRICE.coupling12,"ea"],
+    ["1/2 EMT strap",o.strap12*mult,PRICE.strap12,"ea"]
+   ];
+   let subtotal=0;
+   items.forEach(x=>{const ext=x[1]*x[2];subtotal+=ext;rows.push([x[0]+" • "+fmt(x[1],x[3]==="ft"?0:1)+" "+x[3],"$"+fmt(ext,2)]);});
+   const markup=subtotal*Math.max(0,o.markup)/100, total=subtotal+markup;
+   rows.push(["Material subtotal","$"+fmt(subtotal,2)]);
+   rows.push(["Material markup",o.markup>0?fmt(o.markup,1)+"% • $"+fmt(markup,2):"None"]);
+   rows.push(["Estimated supply cost","$"+fmt(total,2),"pass"]);
+   rows.push(["Price basis","Editable 2026 planning price set"]);
+ }
+ return rows;
+}
+function steps(){
+ const m=data[current].calc;
+ const map={
+ raceway:[
+  ["1 • Determine raceway area","Use the selected raceway type and trade size to obtain a planning internal area."],
+  ["2 • Determine conductor area","Multiply the stored approximate conductor area by the number of conductors."],
+  ["3 • Calculate fill","Fill % = total conductor area ÷ raceway area × 100."],
+  ["4 • Verify the rule","Confirm the applicable NEC fill limit and the actual conductor insulation/dimensions for the installation."]
+ ],
+ auto:[
+  ["1 • Total conductor area","Conductor area × number of conductors."],
+  ["2 • Allowable area","Raceway area × the selected target fill percentage."],
+  ["3 • Size the raceway","WirePath selects the first listed trade size that has enough planning capacity."],
+  ["4 • Verify","Confirm actual raceway internal area and conductor dimensions before final installation."]
+ ],
+ amp:[
+  ["1 • Start with ampacity","Use the selected material and conductor size as the planning base value."],
+  ["2 • CCC adjustment","Apply the planning adjustment factor based on current-carrying conductors."],
+  ["3 • Ambient correction","Apply the planning ambient-temperature correction."],
+  ["4 • Final checks","Verify insulation rating, termination temperature limits, OCPD rules, and all applicable exceptions."]
+ ],
+ vd:[
+  ["1 • Select conductor","Material and AWG automatically select the stored resistance value."],
+  ["2 • Use circuit length","Enter one-way length. Single-phase circuits use the outgoing and return path."],
+  ["3 • Calculate voltage drop","Single phase: Vd = 2 × L × I × R ÷ 1000. Three phase: Vd = √3 × L × I × R ÷ 1000."],
+  ["4 • Calculate percentage","Drop % = voltage drop ÷ system voltage × 100."],
+  ["5 • Interpret","A design guideline comparison is not by itself a determination that an installation violates the NEC."]
+ ],
+ egc:[
+  ["1 • Identify OCPD","Enter the circuit overcurrent device rating."],
+  ["2 • Select planning size","WirePath finds the first listed EGC size associated with that OCPD range."],
+  ["3 • Verify adjustments","If ungrounded conductors are increased in size, verify any applicable EGC adjustment and the complete grounding/bonding requirements."]
+ ],
+ box:[
+  ["1 • Identify conductor size","The conductor size determines the planning volume allowance."],
+  ["2 • Count conductors","Enter insulated and grounding conductors present in the box."],
+  ["3 • Add devices and clamps","Account for internal clamps and device yokes according to the applicable box-fill rules."],
+  ["4 • Verify","Use the actual box volume and complete NEC 314.16 calculation for final work."]
+ ],
+ load:[
+  ["1 • Add connected loads","General/lighting, receptacle, motor, and other VA are combined."],
+  ["2 • Treat continuous load","This planning calculator applies 125% to the entered continuous VA."],
+  ["3 • Apply demand","The entered demand factor is applied to the planning total."],
+  ["4 • Convert to current","Single phase: I = VA ÷ V. Three phase: I = VA ÷ (√3 × V)."],
+  ["5 • Verify","Apply the correct 2026 NEC load-calculation provisions and project-specific demand factors."]
+ ],
+ motor:[
+  ["1 • Select the motor","Choose single-phase or three-phase, rated voltage, and horsepower."],
+  ["2 • Get table FLC","WirePath looks up the motor full-load current from Table 430.248 for single-phase or Table 430.250 for three-phase."],
+  ["3 • Minimum conductor ampacity","For a continuous-duty single motor, calculate 125% × FLC under 430.22."],
+  ["4 • Branch-circuit breaker","For the common inverse-time breaker category, calculate 250% × FLC under Table 430.52 and move to the applicable standard size when permitted."],
+  ["5 • Don't confuse protection types","The breaker protects against short circuit/ground fault; motor overload protection is a separate calculation based on the motor nameplate and applicable 430.32 rules."],
+  ["6 • Verify the complete motor circuit","Check conductor temperature/ampacity, adjustment and correction factors, disconnect, overloads, starter/controller, grounding, voltage, motor type, VFD rules, and any applicable exceptions."]
+ ],
+ service:[
+  ["1 • Start with base load","Enter the calculated load VA before the continuous-load treatment shown here."],
+  ["2 • Apply 125%","WirePath applies 125% to the entered continuous VA."],
+  ["3 • Convert VA to current","Single phase uses VA ÷ V; three phase uses VA ÷ (√3 × V)."],
+  ["4 • Verify","Complete the applicable service/feeder load calculation and conductor/OCPD sizing before installation."]
+ ],
+ takeoff:[
+  ["1 • Raceway quantity","Enter base raceway footage."],
+  ["2 • Conductor quantity","Runs × average run length."],
+  ["3 • Add waste","WirePath applies the selected waste percentage to conductor and raceway footage."],
+  ["4 • Track material","Couplings, supports, and boxes remain separate count quantities."]
+ ],
+ cost:[
+  ["1 • Build the takeoff","Enter quantities for wire, conduit, devices, breakers, boxes, and fittings."],
+  ["2 • Apply waste","WirePath increases quantity-based items by the selected material-waste percentage."],
+  ["3 • Extend each line","Quantity × stored planning unit price = line-item material cost."],
+  ["4 • Add markup","An optional material markup can be applied to the material subtotal."],
+  ["5 • Verify supplier pricing","The price database is a planning baseline, not a live quote. Replace the unit prices with your distributor's current quote before bidding."]
+ ]};
+ return map[m]||[];
+}
+
+function render(){
+ const d=data[current], saved=loadState();
+ document.getElementById("nav").innerHTML="";
+ Object.entries(data).forEach(([k,v])=>{
+   const b=document.createElement("button");
+   b.textContent=v.title;
+   b.className=k===current?"active":"";
+   b.onclick=()=>{current=k;render();window.scrollTo({top:0,behavior:"smooth"});};
+   document.getElementById("nav").appendChild(b);
+ });
+ const fields=d.fields.map((f,i)=>{
+   const value=saved[f[0]]!==undefined?saved[f[0]]:f[3];
+   const control=f[2]==="select"
+     ?`<select id="${f[0]}">${f[3].map(v=>`<option ${String(v)===String(value)?"selected":""}>${esc(v)}</option>`).join("")}</select>`
+     :`<input id="${f[0]}" type="number" inputmode="decimal" step="${f[5]||"any"}" min="0" value="${Number.isFinite(Number(value))?value:""}">`;
+   return `<div class="field ${d.fields.length%2===1&&i===d.fields.length-1?"full":""}">
+     <label for="${f[0]}">${esc(f[1])}</label>
+     <div class="control">${control}</div>
+     <div class="help">${esc(f[4]||"")}</div>
+   </div>`;
+ }).join("");
+ document.getElementById("app").innerHTML=`
+  <section class="card">
+   <div class="titleRow"><div><h2>${esc(d.title)}</h2><p class="desc">${esc(d.desc)}</p></div><span class="badge">2026</span></div>
+   <div class="grid">${fields}</div>
+   <div class="actions"><button class="primary" id="calcBtn">Calculate</button><button class="secondary" id="resetBtn">Reset</button></div>
+  </section>
+  <section class="card">
+   <div class="resultHeader"><h2>Results</h2><span class="badge">Planning</span></div>
+   <div id="rows"></div>
+   <div class="ref">${esc(d.ref)}</div>
+  </section>
+  <section id="learn" class="card learn">
+   <h2>📘 Learn Mode</h2>
+   <div id="steps"></div>
+   <p class="note">WirePath is a field-planning and learning tool. Verify final calculations against the adopted 2026 NEC, local amendments/AHJ requirements, project specifications, and manufacturer instructions.</p>
+  </section>`;
+ document.getElementById("calcBtn").onclick=()=>calculate(true);
+ document.getElementById("resetBtn").onclick=reset;
+ d.fields.forEach(f=>{const e=document.getElementById(f[0]);e.addEventListener("input",()=>{saveState();calculate(false)});e.addEventListener("change",()=>{saveState();calculate(false)});});
+ calculate(false);applyMode();
+}
+function calculate(showToast){
+ const rows=results(get());
+ document.getElementById("rows").innerHTML=rows.map(r=>`<div class="result"><span>${esc(r[0])}</span><span class="value ${r[2]||""}">${esc(r[1])}</span></div>`).join("");
+ document.getElementById("steps").innerHTML=steps().map(s=>`<div class="step"><b>${esc(s[0])}</b><p>${esc(s[1])}</p></div>`).join("");
+ saveState();
+ if(showToast)toast("Calculation updated");
+}
+function reset(){
+ try{localStorage.removeItem(key());}catch(e){}
+ render();
+ toast("Reset to default values");
+}
+function applyMode(){
+ const learn=document.getElementById("learn");
+ if(learn)learn.classList.toggle("show",document.getElementById("mode").value==="Learn");
+}
+function toast(msg){
+ const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");
+ clearTimeout(window._toast);window._toast=setTimeout(()=>t.classList.remove("show"),1200);
+}
+document.getElementById("mode").onchange=applyMode;
+render();
+if("serviceWorker" in navigator)navigator.serviceWorker.register("sw.js").catch(()=>{});
+</script>
+</body>
+</html>
