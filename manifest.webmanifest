@@ -1,0 +1,10 @@
+{
+  "name": "WirePath Ultimate",
+  "short_name": "WirePath",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#0b1220",
+  "theme_color": "#0b1220",
+  "description": "Electrical field calculator and learning tool.",
+  "icons": []
+}
